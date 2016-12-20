@@ -34,6 +34,11 @@ module Fetcha
         }
     end
 
+    def fulltext_search_on(*fields)
+      include PgSearch
+      self.pg_search_scope :search_full_text, against: fields, using: { trigram: { threshold: 0.1 }, tsearch: { prefix: true } }
+    end
+
     def filterable_on(*fields)
       fields.each do |field|
         fetchable_opts[:filtering][field.to_s] = nil
@@ -41,11 +46,11 @@ module Fetcha
     end
 
     def sortable_on(*fields)
-      fetchable_opts[:sorting] = Set.new(fields)
+      fetchable_opts[:sorting] = Set.new(fields.map(&:to_s))
     end
 
     def scopable_with(*fields)
-      fetchable_opts[:scopes] = Set.new(fields)
+      fetchable_opts[:scopes] = Set.new(fields.map(&:to_s))
     end
 
     def paginatable(args = {})
@@ -59,7 +64,19 @@ module Fetcha
       datasource.send(query_scope) if (fetchable_opts[:scopes].include? query_scope.to_sym)
     end
 
-    def process_filtering(datasource, filters = {})
+    def process_filtering(datasource, filters)
+      if filters.is_a?(String)
+        full_text_filtering(datasource, filters)
+      else
+        hash_filtering(datasource, filters)
+      end
+    end
+
+    def full_text_filtering(datasource, filter)
+      datasource.search_full_text(filter)
+    end
+
+    def hash_filtering(datasource, filters = {})
       filter_opts = fetchable_opts[:filtering]
       includes = Set.new()
       
@@ -116,7 +133,6 @@ module Fetcha
     def contains_filter(datasource, field, value)
       datasource.where("#{field} ilike ?", "%#{value}%")
     end
-
 
     def starts_with_filter(datasource, field, value)
       datasource.where("#{field} ilike ?", "#{value}%")
