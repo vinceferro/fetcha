@@ -12,10 +12,12 @@ module Fetcha
       filters = params['filter']
       sorting = params['sort']
       pages = params['page']
+      search = params['search']
       results = process_scope(results, query_scope) if query_scope
       results = process_filtering(results, filters) if filters
       results = process_sorting(results, sorting) if sorting
       results = process_pagination!(results, pages) if pages
+      results = process_search(results, search) if search
       results
     end
 
@@ -64,19 +66,11 @@ module Fetcha
       datasource.send(query_scope) if (fetchable_opts[:scopes].include? query_scope.to_sym)
     end
 
-    def process_filtering(datasource, filters)
-      if filters.is_a?(String)
-        full_text_filtering(datasource, filters)
-      else
-        hash_filtering(datasource, filters)
-      end
+    def process_search(datasource, search)
+      datasource.search_full_text(search)
     end
 
-    def full_text_filtering(datasource, filter)
-      datasource.search_full_text(filter)
-    end
-
-    def hash_filtering(datasource, filters = {})
+    def process_filtering(datasource, filters = {})
       filter_opts = fetchable_opts[:filtering]
       includes = Set.new()
       
