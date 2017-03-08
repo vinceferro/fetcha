@@ -18,7 +18,28 @@ module Fetcha
       results = process_sorting(results, sorting) if sorting
       results = process_pagination!(results, pages) if pages
       results = process_search(results, search) if search
-      results
+      results.extending(PaginationTotalCount)
+    end
+
+    module PaginationTotalCount
+      def reset
+        @total_count = nil
+        super
+      end
+
+      def total_count(column_name = :all, _options = nil)
+        @total_count ||= 
+          begin
+            c = except(:offset, :limit, :order)
+            c = c.count(column_name)
+
+            if c.is_a?(Hash) || c.is_a?(ActiveSupport::OrderedHash)
+              c.count
+            else
+              c.respond_to?(:count) ? c.count(column_name) : c
+            end
+          end
+      end
     end
 
     private
