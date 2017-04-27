@@ -1,13 +1,12 @@
-require "fetcha/version"
-require "active_support/concern"
+require 'fetcha/version'
+require 'active_support/concern'
 
 module Fetcha
   extend ActiveSupport::Concern
 
   module ClassMethods
-
     def fetch(params = {})
-      results = self.all
+      results = all
       query_scope = params['scope']
       filters = params['filter']
       sorting = params['sort']
@@ -28,7 +27,7 @@ module Fetcha
       end
 
       def total_count(column_name = :all, _options = nil)
-        @total_count ||= 
+        @total_count ||=
           begin
             c = except(:offset, :limit, :order)
             c = c.count(column_name)
@@ -49,7 +48,7 @@ module Fetcha
         {
           filtering: {},
           sorting: {},
-          scopes: Set.new(),
+          scopes: Set.new,
           pagination: {
             default_size: 10,
             max_size: 50
@@ -59,7 +58,7 @@ module Fetcha
 
     def fulltext_search_on(*fields)
       include PgSearch
-      self.pg_search_scope :search_full_text, against: fields, using: { trigram: { threshold: 0.1 }, tsearch: { prefix: true } }
+      pg_search_scope :search_full_text, against: fields, using: { trigram: { threshold: 0.1 }, tsearch: { prefix: true } }
     end
 
     def filterable_on(*fields)
@@ -84,7 +83,7 @@ module Fetcha
     end
 
     def process_scope(datasource, query_scope)
-      datasource.send(query_scope) if (fetchable_opts[:scopes].include? query_scope.to_sym)
+      datasource.send(query_scope) if fetchable_opts[:scopes].include? query_scope.to_sym
     end
 
     def process_search(datasource, search)
@@ -93,9 +92,9 @@ module Fetcha
 
     def process_filtering(datasource, filters = {})
       filter_opts = fetchable_opts[:filtering]
-      includes = Set.new()
-      
-      real_filters = filters.select do |k| 
+      includes = Set.new
+
+      real_filters = filters.select do |k|
         next unless filter_opts.keys.include? k
         values = k.split('.')
         includes << values.first if values.second.present?
@@ -104,7 +103,12 @@ module Fetcha
       results = includes.empty? ? datasource : datasource.includes(includes.to_a)
 
       real_filters.each do |key, value|
-        results = process_operation(results, key, value)
+        v = if value =~ /,/
+              value.split(',')
+            else
+              value
+            end
+        results = process_operation(results, key, v)
       end
       results
     end
@@ -122,7 +126,7 @@ module Fetcha
           results = send("#{operation}_filter", results, field, value)
         end
       else
-        results = results.where({field => value})
+        results = results.where(field => value)
       end
       results
     end
@@ -158,7 +162,7 @@ module Fetcha
     end
 
     def method_missing(name, *args, block)
-      raise ForbiddenError if name.match /.*_filter$/
+      raise ForbiddenError if name =~ /.*_filter$/
       super
     end
   end
@@ -184,7 +188,6 @@ module Fetcha
       end
     end
   end
-
 
   class ForbiddenError < StandardError; end
 end
